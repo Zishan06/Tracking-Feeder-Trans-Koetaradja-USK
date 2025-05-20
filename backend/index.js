@@ -100,65 +100,206 @@ function calculateArrivalTime(departure, duration) {
   return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
 }
 
-
-
-// ==================== PENCARIAN RUTE ====================
-app.get('/api/routes', async (req, res) => {
+//=========================CEK JADWAL=====================
+app.get('/api/schedules/active', async (req, res) => {
   try {
-    const { from, to, day, time } = req.query;
+    const { time, day } = req.query;
     
     // Validasi input
-    if (!from || !to || !day) {
-      return res.status(400).json({ error: 'Parameter from, to, dan day wajib' });
+    if (!time || !day) {
+      return res.status(400).json({ error: 'Parameter time dan day wajib' });
     }
 
-    // Inisialisasi/update graf
-    const now = Date.now();
-    if (!routeGraph || !lastGraphUpdate || (now - lastGraphUpdate) > 300000) {
-      const [jalur] = await pool.query('SELECT * FROM jalur');
-      routeGraph = new OptimizedGraph();
-      
-      jalur.forEach(j => {
-        if (j.waktu > 0) { // Pastikan weight valid
-          routeGraph.addEdge(j.id_halte_awal, j.id_halte_akhir, j.waktu);
-        }
-      });
-      
-     
-    }
+    // Format waktu (HH:MM)
+    const [hours, minutes] = time.split(':');
+    const timeFormatted = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
 
-    // ✅ PERBAIKAN DI SINI: Gunakan routeGraph, bukan graph
-    const result = await routeGraph.dijkstra(from, to);
-    if (!result) return res.status(404).json({ error: 'Rute tidak ditemukan' });
-
-    // Ambil jadwal bus
-    const schedules = [];
-    for (const halte of result.path.slice(0, -1)) {
-      const [s] = await pool.query(
-        `SELECT j.*, b.status_bus 
-         FROM jadwal j
-         JOIN bus b ON j.kd_bus = b.kd_bus
-         WHERE j.id_halte = ? AND j.hari = ? 
-         ${time ? 'AND j.waktu >= ?' : ''}
-         ORDER BY j.waktu LIMIT 1`,
-        [halte, day, ...(time ? [time] : [])]
-      );
-      if (s.length) schedules.push(s[0]);
-    }
+    // Query database
+    const [schedules] = await pool.query(`
+      SELECT 
+        j.id_jadwal,
+        j.hari,
+        j.waktu,
+        j.kd_bus,
+        j.id_halte,
+        h.nama_halte,
+        b.status_bus
+      FROM jadwal j
+      JOIN halte h ON j.id_halte = h.id_halte
+      JOIN bus b ON j.kd_bus = b.kd_bus
+      WHERE j.hari = ?
+        AND j.waktu BETWEEN ? AND ?
+      ORDER BY j.waktu
+    `, [day, timeFormatted, `${hours}:${minutes}:59`]);
 
     res.json({
-      path: result.path,
-      total_time: `${result.time} menit`,
-      schedules
+      time,
+      day,
+      active_schedules: schedules.map(s => ({
+        bus: s.kd_bus,
+        waktu: s.waktu.slice(0, 5), // Format HH:MM
+        halte: s.nama_halte,
+        status: s.status_bus
+      }))
     });
-    
+
   } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: err.message 
-    });
+    res.status(500).json({ error: err.message });
   }
+});
+
+//=====================UNTUK TAU ESTIMASI KEDATANGAN BUS DI HALTE A===========
+async function calculateETA(busSchedule, targetHalteId) {
+  try {
+    // 1. Dapatkan rute bus (RT001 atau RT002)
+    const [routeHalte] = await pool.query(
+      `SELECT id_halte FROM halte 
+       WHERE id_rute = ? 
+       ORDER BY urutan`,
+      [busSchedule.id_rute]
+    );
+    const routeHalteIds = routeHalte.map(h => h.id_halte);
+
+    // 2. Cari posisi bus saat ini (halte terakhir yang dilewati)
+    const [lastPassed] = await pool.query(
+      `SELECT id_halte FROM bus_positions 
+       WHERE kd_bus = ? 
+       ORDER BY timestamp DESC LIMIT 1`,
+      [busSchedule.kd_bus]
+    );
+    
+    const currentHalteId = lastPassed.length 
+      ? lastPassed[0].id_halte 
+      : busSchedule.id_halte;
+
+    // 3. Cari indeks halte saat ini dan target
+    const currentIndex = routeHalteIds.indexOf(currentHalteId);
+    const targetIndex = routeHalteIds.indexOf(targetHalteId);
+
+    if (currentIndex === -1 || targetIndex === -1) {
+      return null; // Halte tidak valid untuk rute ini
+    }
+
+    // 4. Hitung total waktu perjalanan
+    let totalTime = 0;
+    let nextIndex = currentIndex;
+
+    // Handle rute sirkular (jika bus sudah di akhir rute)
+    if (currentIndex === routeHalteIds.length - 1) {
+      nextIndex = 0; // Kembali ke halte pertama
+      totalTime += 10; // Waktu dari HT014 ke HT001
+    }
+
+    // Hitung waktu dari posisi saat ini ke target
+    while (nextIndex !== targetIndex) {
+      const currentHalte = routeHalteIds[nextIndex];
+      const nextHalte = routeHalteIds[(nextIndex + 1) % routeHalteIds.length];
+      
+      const [jalur] = await pool.query(
+        `SELECT waktu FROM jalur 
+         WHERE id_halte_awal = ? AND id_halte_akhir = ?`,
+        [currentHalte, nextHalte]
+      );
+      
+      totalTime += jalur[0].waktu;
+      nextIndex = (nextIndex + 1) % routeHalteIds.length;
+    }
+
+    return totalTime;
+
+  } catch (err) {
+    console.error('Error in calculateETA:', err);
+    return null;
+  }
+}
+
+// Endpoint yang sudah diperbaiki
+app.get('/api/bus/eta', async (req, res) => {
+  try {
+    const { halteId } = req.query;
+    
+    if (!halteId) {
+      return res.status(400).json({ error: 'Parameter halteId wajib' });
+    }
+
+    // 1. Cari bus berikutnya yang menuju halte ini
+    const [nextBus] = await pool.query(`
+      SELECT j.*, b.status_bus 
+      FROM jadwal j
+      JOIN bus b ON j.kd_bus = b.kd_bus
+      WHERE j.id_halte IN (
+        SELECT id_halte_awal FROM jalur WHERE id_halte_akhir = ?
+      )
+      AND j.waktu >= TIME(NOW())
+      AND j.hari = DAYNAME(NOW())
+      ORDER BY j.waktu
+      LIMIT 1
+    `, [halteId]);
+
+    // 2. Hitung ETA jika bus ditemukan
+    if (nextBus.length) {
+      const etaMinutes = await calculateETA(nextBus[0], halteId);
+      
+      if (etaMinutes !== null) {
+        // Hitung waktu kedatangan
+        const [hours, mins] = nextBus[0].waktu.split(':');
+        const arrivalTime = new Date();
+        arrivalTime.setHours(hours, mins, 0, 0);
+        arrivalTime.setMinutes(arrivalTime.getMinutes() + etaMinutes);
+        
+        res.json({
+          bus: nextBus[0].kd_bus,
+          currentHalte: nextBus[0].id_halte,
+          etaMinutes,
+          arrivalTime: arrivalTime.toTimeString().substr(0, 5),
+          nextHalte: await getNextHalte(nextBus[0].kd_bus)
+        });
+      } else {
+        res.json({ error: 'Tidak dapat menghitung ETA' });
+      }
+    } else {
+      res.json({ message: 'Tidak ada bus menuju halte ini dalam waktu dekat' });
+    }
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper function - dapatkan halte berikutnya
+async function getNextHalte(busId) {
+  const [position] = await pool.query(
+    `SELECT id_halte FROM bus_positions 
+     WHERE kd_bus = ? ORDER BY timestamp DESC LIMIT 1`,
+    [busId]
+  );
+  
+  if (position.length) {
+    const [route] = await pool.query(
+      `SELECT id_halte FROM halte 
+       WHERE id_rute = (
+         SELECT id_rute FROM jadwal WHERE kd_bus = ? LIMIT 1
+       ) ORDER BY urutan`,
+      [busId]
+    );
+    
+    const currentIndex = route.findIndex(h => h.id_halte === position[0].id_halte);
+    return currentIndex !== -1 
+      ? route[(currentIndex + 1) % route.length].id_halte 
+      : null;
+  }
+  return null;
+}
+
+app.get('/api/haltes', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM halte');
+        console.log("Data halte dari DB:", rows); // Log untuk debug
+        res.json(rows);
+    } catch(err) {
+        console.error("Error query halte:", err);
+        res.status(500).json({ error: err.message });
+    }
 });
 //=============================MODE ATMIN===============================member dilarang masuk!
 const isAdmin = (req) => {
@@ -284,6 +425,6 @@ app.listen(PORT, () => {
     pool.query('SELECT 1'),
     pool.query('SELECT 1'),
     pool.query('SELECT 1')
-  ]).then(() => console.log('✅ Database connection ready'))
-    .catch(err => console.error('❌ Database connection failed:', err));
+  ]).then(() => console.log('✅ Database terkoneksi'))
+    .catch(err => console.error('❌ Matilah, ada yg salah bos:', err));
 });
