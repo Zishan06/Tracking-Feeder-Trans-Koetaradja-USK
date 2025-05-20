@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Jadwal Trans Koetaradja</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="background-overlay"></div>
+  <!-- HEADER -->
+  <header class="logo-bar">
+    <div class="logo-left">
+      <img src="assets/logo-unsyiah.png" alt="Logo UNSYIAH" class="logo" />
+      <img src="assets/logo-hmif.png" alt="Logo HMIF" class="logo" />
+    </div>
+    <h1 class="admin-title">Panel Admin Trans Koetaradja</h1>
+    <div class="logo-right">
+      <img src="assets/logo-trans.png" alt="Logo Trans Koetaradja" class="logo-trans" />
+    </div>
+  </header>
+
+  <!-- NAVIGASI -->
+  <nav>
+    <a href="index.html">Kembali ke Halte</a>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <section class="admin-panel">
+      <h2>Manajemen Jadwal</h2>
+      <form id="jadwal-form">
+        <input type="text" id="id_jadwal" placeholder="ID Jadwal" required />
+        <input type="text" id="hari" placeholder="Hari" required />
+        <input type="time" id="waktu" placeholder="Waktu" required />
+        <input type="text" id="kd_bus" placeholder="Kode Bus" required />
+        <input type="text" id="id_rute" placeholder="ID Rute" required />
+        <input type="text" id="id_halte" placeholder="ID Halte" required />
+        <button type="submit">Simpan</button>
+      </form>
+      <table id="jadwal-table">
+        <thead>
+          <tr>
+            <th>ID Jadwal</th>
+            <th>Hari</th>
+            <th>Waktu</th>
+            <th>Kode Bus</th>
+            <th>ID Rute</th>
+            <th>ID Halte</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Data dimuat lewat script.js -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Ikon Tambah -->
+  <button class="floating-btn" id="add-jadwal-btn" title="Tambah Jadwal">+</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
