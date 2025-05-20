@@ -1,11 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>City Bus Schedule</title>
+  <title>Trans Koetaradja</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Bus Schedule</h1>
-  <div id="bus-list">Loading...</div>
-  <script src="script.js"></script>
+  <!-- Header sesuai Figma -->
+  <header>
+    <img src="assets/header-logo.svg" alt="Logo" class="logo">
+    <h1>Jadwal Bus Kampus</h1>
+  </header>
+
+  <!-- Search Box -->
+  <div class="search-container">
+    <div class="input-group">
+      <label>Dari Halte:</label>
+      <select id="fromHalte">...</select>
+    </div>
+    
+    <!-- Tambahkan elemen lain sesuai Figma -->
+    <button id="searchBtn">
+      <img src="assets/search-icon.svg" alt="Cari">
+      Cari Rute
+    </button>
+  </div>
+
+  <!-- Result Section -->
+  <div class="result-card">
+    <div class="route-visual">
+      <img src="assets/map-placeholder.png" alt="Peta Rute">
+    </div>
+    <div class="route-details">
+      <!-- Konten dinamis dari JS -->//gak mesti
+    </div>
+  </div>
 </body>
 </html>
