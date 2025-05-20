@@ -360,22 +360,16 @@ app.delete('/api/haltes/:id', async (req, res) => {
   }
 });
 
-app.post('/api/schedules', async (req, res) => {//----------------------------JADWAL
-  if(!isAdmin(req)) return res.status(403).json({ error: 'Akses ditolak' });
+app.get('/api/jadwal', async (req, res) => {//-----------------------------JADWAL
   try {
-    const { id_jadwal, hari, waktu, kd_bus, id_rute, id_halte } = req.body;
-    
-    if(!id_jadwal || !hari || !waktu || !kd_bus || !id_rute || !id_halte) {
-      return res.status(400).json({ error: 'Semua field wajib diisi' });
-    }
-
-    const [result] = await pool.query(
-      'INSERT INTO jadwal SET ?',
-      { id_jadwal, hari, waktu, kd_bus, id_rute, id_halte }
-    );
-    
-    res.status(201).json({ message: 'Jadwal created', id: id_jadwal });
-  } catch(err) {
+    const [rows] = await pool.query(`
+      SELECT * FROM jadwal
+      ORDER BY 
+        FIELD(hari, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'),
+        waktu
+    `);
+    res.json(rows);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
