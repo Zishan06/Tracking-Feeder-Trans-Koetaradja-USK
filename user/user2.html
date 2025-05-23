@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trans Koetaradja - Panel Pengguna</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body id="main-body" class="bg-blue-600 font-sans transition-colors duration-500">
+
+  <!-- Modal Pilihan Awal -->
+  <div id="modal-pilihan" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-8 text-center space-y-8 max-w-md w-full">
+      <div>
+        <img src="assets/logo-trans.png" alt="Logo Trans Koetaradja" class="mx-auto h-20 mb-4" />
+        <h2 class="text-2xl font-bold text-blue-900 mb-2">Selamat Datang!</h2>
+        <p class="mb-4 text-gray-700">Silakan pilih menu yang ingin Anda akses:</p>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <button onclick="pilihMenu('cek-bus')" class="flex flex-col items-center p-4 bg-blue-100 rounded-lg hover:bg-blue-200 transition">
+          <!-- Bus Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16V6a2 2 0 012-2h12a2 2 0 012 2v10M4 16h16M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M9 20v-2m6 2v-2" />
+          </svg>
+          <span class="text-blue-900 font-semibold">Semua Bus</span>
+        </button>
+        <button onclick="pilihMenu('cek-rute')" class="flex flex-col items-center p-4 bg-green-100 rounded-lg hover:bg-green-200 transition">
+          <!-- Map Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.894L9 2m0 18l6-2.727M9 20V2m6 15.273l5.447-2.724A2 2 0 0021 15.382V5.618a2 2 0 00-1.553-1.894L15 2m0 18V2" />
+          </svg>
+          <span class="text-green-900 font-semibold">Info Rute</span>
+        </button>
+        <button onclick="pilihMenu('cek-kedatangan')" class="flex flex-col items-center p-4 bg-yellow-100 rounded-lg hover:bg-yellow-200 transition">
+          <!-- Clock Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="text-yellow-800 font-semibold">Lokasi Halte</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+<header id="main-header" class="bg-blue-900 text-white p-4 flex items-center justify-between">
+    <div class="flex space-x-4">
+      <img src="assets/logo-unsyiah.png" alt="Logo UNSYIAH" class="h-16 w-auto" />
+      <img src="assets/logo-hmif.png" alt="Logo HMIF" class="h-16 w-auto" />
+    </div>
+    <h1 class="text-xl font-bold text-center flex-1">Trans Koetaradja</h1>
+    <div class="flex space-x-4">
+      <img src="assets/logo-dishub.png" alt="Logo Dinas Perhubungan" class="h-16 w-auto" />
+      <img src="assets/logo-trans.png" alt="Logo Trans Koetaradja" class="h-16 w-auto" />
+    </div>
+  </header>
+
+  <main id="main-content" class="p-6">
+    <!-- Cek Bus -->
+    <section id="cek-bus" class="tab">
+      <h2 class="text-2xl font-semibold mb-4">🚍 Cek Bus yang Aktif Sekarang</h2>
+      <div class="mt-4 bg-white shadow p-4 rounded">
+        <p><strong>Halte:</strong> USK</p>
+        <p><strong>Bus:</strong> Bus 01, Bus 03</p>
+      </div>
+      <div class="mt-8 flex flex-col md:flex-row gap-4 justify-center">
+        <button onclick="showTab('cek-rute')" class="flex-1 py-3 px-6 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-lg font-semibold flex items-center justify-center gap-2">
+          <!-- Map Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.894L9 2m0 18l6-2.727M9 20V2m6 15.273l5.447-2.724A2 2 0 0021 15.382V5.618a2 2 0 00-1.553-1.894L15 2m0 18V2" />
+          </svg>
+          Cek Rute Bus
+        </button>
+        <button onclick="showTab('cek-kedatangan')" class="flex-1 py-3 px-6 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition text-lg font-semibold flex items-center justify-center gap-2">
+          <!-- Clock Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Cek Kedatangan
+        </button>
+      </div>
+    </section>
+
+    <!-- Cek Rute -->
+    <section id="cek-rute" class="tab hidden">
+      <h2 class="text-2xl font-semibold mb-4">🗺️ Info Rute Bus</h2>
+      <div class="bg-white shadow p-4 rounded">
+        <form id="route-form" class="space-y-4">
+          <div>
+            <label for="from-halte" class="block text-gray-700">Halte Asal:</label>
+            <select id="from-halte" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+              <option value="">Pilih Halte Asal</option>
+              <!-- Halte akan diisi dengan JavaScript -->
+            </select>
+          </div>
+          <div>
+            <label for="to-halte" class="block text-gray-700">Halte Tujuan:</label>
+            <select id="to-halte" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+              <option value="">Pilih Halte Tujuan</option>
+              <!-- Halte akan diisi dengan JavaScript -->
+            </select>
+          </div>
+          <button type="submit" class="mt-4 w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition">Cari Rute</button>
+        </form>
+      </div>
+      <div id="route-results" class="mt-6">
+        <!-- Hasil rute akan ditampilkan di sini -->
+      </div>
+      <div class="mt-8 flex flex-col md:flex-row gap-4 justify-center">
+        <button onclick="showTab('cek-bus')" class="flex-1 py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-semibold flex items-center justify-center gap-2">
+          <!-- Bus Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16V6a2 2 0 012-2h12a2 2 0 012 2v10M4 16h16M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M9 20v-2m6 2v-2" />
+          </svg>
+          Semua Bus
+        </button>
+        <button onclick="showTab('cek-kedatangan')" class="flex-1 py-3 px-6 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition text-lg font-semibold flex items-center justify-center gap-2">
+          <!-- Clock Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Cek Kedatangan
+        </button>
+      </div>
+    </section>
+
+    <!-- Cek Kedatangan -->
+    <section id="cek-kedatangan" class="tab hidden">
+      <h2 class="text-2xl font-semibold mb-4">⏰ Info Kedatangan Bus</h2>
+      <p>Belum ada data kedatangan yang ditampilkan.</p>
+      <div class="mt-8 flex flex-col md:flex-row gap-4 justify-center">
+        <button onclick="showTab('cek-bus')" class="flex-1 py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-semibold flex items-center justify-center gap-2">
+          <!-- Bus Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16V6a2 2 0 012-2h12a2 2 0 012 2v10M4 16h16M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M9 20v-2m6 2v-2" />
+          </svg>
+          Semua Bus
+        </button>
+        <button onclick="showTab('cek-rute')" class="flex-1 py-3 px-6 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-lg font-semibold flex items-center justify-center gap-2">
+          <!-- Map Icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.894L9 2m0 18l6-2.727M9 20V2m6 15.273l5.447-2.724A2 2 0 0021 15.382V5.618a2 2 0 00-1.553-1.894L15 2m0 18V2" />
+          </svg>
+          Cek Rute Bus
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Floating Social Media Buttons -->
+  <div id="floating-social" class="fixed right-4 bottom-4 flex flex-col items-end z-50 space-y-3">
+    <a href="https://instagram.com/transkoetardja_aceh" target="_blank" class="flex items-center bg-pink-500 hover:bg-pink-700 text-white rounded-full shadow-lg p-3 transition group" title="Instagram">
+      <!-- Instagram Icon -->
+      <svg class="w-7 h-7 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.332 3.608 1.308.975.975 1.246 2.242 1.308 3.608.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.062 1.366-.332 2.633-1.308 3.608-.975.975-2.242 1.246-3.608 1.308-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.366-.062-2.633-.332-3.608-1.308-.975-.975-1.246-2.242-1.308-3.608-.058-1.266-.07-1.646-.07-4.85s.012-3.584.07-4.85c.062-1.366.332-2.633 1.308-3.608.975-.975 2.242-1.246 3.608-1.308 1.266-.058 1.646-.07 4.85-.07zm0-2.163C8.756 0 8.333.013 7.052.072 5.77.131 4.548.392 3.515 1.425 2.482 2.458 2.221 3.68 2.162 4.962.013 8.333 0 8.756 0 12s.013 3.667.072 4.948c.059 1.282.32 2.504 1.353 3.537 1.033 1.033 2.255 1.294 3.537 1.353 1.281.059 1.704.072 4.948.072s3.667-.013 4.948-.072c1.282-.059 2.504-.32 3.537-1.353 1.033-1.033 1.294-2.255 1.353-3.537.059-1.281.072-1.704.072-4.948s-.013-3.667-.072-4.948c-.059-1.282-.32-2.504-1.353-3.537-1.033-1.033-2.255-1.294-3.537-1.353-1.281-.059-1.704-.072-4.948-.072z"/><path d="M12 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zm0 10.162a4 4 0 110-8 4 4 0 010 8z"/><circle cx="18.406" cy="5.594" r="1.44"/></svg>
+      <span class="font-semibold">transkoetardja_aceh</span>
+    </a>
+    <a href="https://api.whatsapp.com/send/?phone=628116712349&text&type=phone_number&app_absent=0" target="_blank" class="flex items-center bg-green-500 hover:bg-green-700 text-white rounded-full shadow-lg p-3 transition group" title="WhatsApp">
+      <!-- WhatsApp Icon -->
+      <svg class="w-7 h-7 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.98L0 24l6.18-1.62A11.93 11.93 0 0012 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.66-.5-5.23-1.44l-.37-.22-3.67.96.98-3.58-.24-.37A9.93 9.93 0 012 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.43-2.25-1.37-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.13-.13.28-.34.42-.51.14-.17.18-.29.28-.48.09-.19.05-.36-.02-.5-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.36-.01-.56-.01-.19 0-.5.07-.76.34-.26.27-1 1-.99 2.43.01 1.43 1.03 2.81 1.18 3 .15.19 2.03 3.1 4.93 4.23.69.3 1.23.48 1.65.62.69.22 1.32.19 1.82.12.56-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/></svg>
+      <span class="font-semibold">0811-6712-349</span>
+    </a>
+  </div>
+
+  <script>
+
+    function showTab(id) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function pilihMenu(id) {
+      // Ubah background ke abu-abu
+      document.getElementById('main-body').classList.remove('bg-blue-600');
+      document.getElementById('main-body').classList.add('bg-gray-100');
+      
+      // Sembunyikan modal dan tampilkan konten utama
+      document.getElementById('modal-pilihan').style.display = 'none';
+      document.getElementById('main-header').classList.remove('hidden');
+      document.getElementById('main-content').classList.remove('hidden');
+      showTab(id);
+    }
+
+    // Sembunyikan header & main saat awal, tampilkan modal dengan background biru
+    window.onload = function() {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
+      document.getElementById('modal-pilihan').style.display = 'flex';
+      document.getElementById('main-header').classList.add('hidden');
+      document.getElementById('main-content').classList.add('hidden');
+    } 
+  </script>
+</body>
+</html>
