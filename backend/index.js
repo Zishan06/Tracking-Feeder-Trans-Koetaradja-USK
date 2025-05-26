@@ -22,50 +22,25 @@ app.get('/api/find-route', async (req, res) => {
   try {
     const { from, to, time } = req.query;
     
-    // 1. Dapatkan urutan halte
+    // Cek jika dari dan ke sudah dipilih
+    if (!from) {
+      return res.status(400).json({ error: 'Halte asal wajib diisi' });
+    }
+
+    // Ambil urutan halte untuk rute yang dipilih
     const [halte] = await pool.query(`
       SELECT * FROM halte 
       WHERE id_rute = 'RT001' 
       ORDER BY urutan
     `);
 
-    // 2. Cari posisi halte awal dan akhir
-    const fromIndex = halte.findIndex(h => h.id_halte === from);
-    const toIndex = halte.findIndex(h => h.id_halte === to);
-
-    if (fromIndex === -1 || toIndex === -1) {
-      return res.status(404).json({ error: 'Halte tidak ditemukan' });
+    // Filter halte asal
+    const fromHalte = halte.find(h => h.id_halte === from);
+    if (!fromHalte) {
+      return res.status(404).json({ error: 'Halte asal tidak ditemukan' });
     }
 
-    // 3. Tentukan rute berdasarkan urutan
-    let route = [];
-    if (fromIndex <= toIndex) {
-      // Rute langsung
-      route = halte.slice(fromIndex, toIndex + 1).map(h => h.id_halte);
-    } else {
-      // Rute melalui sirkular (HT014 -> HT001)
-      route = [
-        ...halte.slice(fromIndex),
-        ...halte.slice(0, toIndex + 1)
-      ].map(h => h.id_halte);
-    }
-
-    // 4. Hitung total waktu
-    const [jalur] = await pool.query('SELECT * FROM jalur');
-    let totalTime = 0;
-    
-    for (let i = 0; i < route.length - 1; i++) {
-      const edge = jalur.find(j => 
-        j.id_halte_awal === route[i] && 
-        j.id_halte_akhir === route[i + 1]
-      );
-      if (!edge) {
-        return res.status(404).json({ error: 'Jalur tidak lengkap' });
-      }
-      totalTime += edge.waktu;
-    }
-
-    // 5. Cari bus yang tersedia
+    // Kirimkan rute dan bus yang sesuai dengan halte asal
     const [schedules] = await pool.query(`
       SELECT j.*, b.status_bus 
       FROM jadwal j
@@ -78,8 +53,7 @@ app.get('/api/find-route', async (req, res) => {
     `, [from, time || '00:00:00']);
 
     res.json({
-      route,
-      total_time: `${totalTime} menit`,
+      fromHalte: fromHalte.nama_halte,
       next_buses: schedules.map(s => ({
         bus: s.kd_bus,
         waktu: s.waktu.slice(0, 5),
@@ -91,6 +65,7 @@ app.get('/api/find-route', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 function calculateArrivalTime(departure, duration) {
   const [h, m] = departure.split(':');
@@ -301,6 +276,37 @@ app.get('/api/haltes', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+app.get('/api/jadwal', async (req, res) => {
+  const { rute, from, to } = req.query;
+  if (!rute) return res.json([]);
+  try {
+    // Ambil urutan halte asal dan tujuan
+    let urutanFrom = 1, urutanTo = 999;
+    if (from && to) {
+      const [halteRows] = await pool.query(
+        "SELECT nama_halte, urutan FROM halte WHERE id_rute = ? AND (nama_halte = ? OR nama_halte = ?)",
+        [rute, from, to]
+      );
+      const urutans = halteRows.map(h => h.urutan);
+      urutanFrom = Math.min(...urutans);
+      urutanTo = Math.max(...urutans);
+    }
+    const [rows] = await pool.query(
+      `SELECT j.*, h.nama_halte 
+       FROM jadwal j
+       JOIN halte h ON j.id_halte = h.id_halte
+       WHERE j.id_rute = ?
+       AND h.urutan BETWEEN ? AND ?
+       ORDER BY h.urutan, j.hari, j.waktu`, [rute, urutanFrom, urutanTo]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 //=============================MODE ATMIN===============================member dilarang masuk!
 const isAdmin = (req) => {
   return req.query.secret === 'iqankerapu'; // Ganti dengan kode rahasia
@@ -360,20 +366,6 @@ app.delete('/api/haltes/:id', async (req, res) => {
   }
 });
 
-app.get('/api/jadwal', async (req, res) => {//-----------------------------JADWAL
-  try {
-    const [rows] = await pool.query(`
-      SELECT * FROM jadwal
-      ORDER BY 
-        FIELD(hari, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'),
-        waktu
-    `);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.delete('/api/schedules/:id', async (req, res) => {
   if(!isAdmin(req)) return res.status(403).json({ error: 'Akses ditolak' });
   try {
@@ -422,3 +414,4 @@ app.listen(PORT, () => {
   ]).then(() => console.log('✅ Database terkoneksi'))
     .catch(err => console.error('❌ Matilah, ada yg salah bos:', err));
 });
+
