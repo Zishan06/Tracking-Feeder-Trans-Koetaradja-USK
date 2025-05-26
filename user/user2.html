@@ -42,22 +42,20 @@
     </div>
   </div>
 
-<header id="main-header" class="bg-blue-900 text-white p-4 flex items-center justify-between">
-    <div class="flex space-x-4">
-      <img src="assets/logo-unsyiah.png" alt="Logo UNSYIAH" class="h-16 w-auto" />
-      <img src="assets/logo-hmif.png" alt="Logo HMIF" class="h-16 w-auto" />
-    </div>
-    <h1 class="text-xl font-bold text-center flex-1">Trans Koetaradja</h1>
-    <div class="flex space-x-4">
-      <img src="assets/logo-dishub.png" alt="Logo Dinas Perhubungan" class="h-16 w-auto" />
-      <img src="assets/logo-trans.png" alt="Logo Trans Koetaradja" class="h-16 w-auto" />
-    </div>
-  </header>
+<header id="main-header" class="bg-blue-100 text-blue-900 p-4 flex items-center">
+  <!-- Logo Trans di kiri -->
+  <img src="assets/logo-trans.png" alt="Logo Trans Koetaradja" class="h-16 w-auto mr-4" />
+  <div class="flex-1 flex justify-center">
+    <img src="assets/trans.png" alt="Trans Koetaradja" class="h-16 w-auto" />
+  </div>
+</header>
 
   <main id="main-content" class="p-6">
     <!-- Cek Bus -->
     <section id="cek-bus" class="tab">
       <h2 class="text-2xl font-semibold mb-4">🚍 Cek Bus yang Aktif Sekarang</h2>
+      <p class="text-lg mt-2"><strong>Time:</strong> <strong><span class="jam-sekarang"></span></strong></p>
+      
       <div class="mt-4 bg-white shadow p-4 rounded">
         <p><strong>Halte:</strong> USK</p>
         <p><strong>Bus:</strong> Bus 01, Bus 03</p>
@@ -83,8 +81,16 @@
     <!-- Cek Rute -->
     <section id="cek-rute" class="tab hidden">
       <h2 class="text-2xl font-semibold mb-4">🗺️ Info Rute Bus</h2>
+      <p class="text-lg mt-2"><strong>Time:</strong> <strong><span class="jam-sekarang"></span></strong></p>
       <div class="bg-white shadow p-4 rounded">
         <form id="route-form" class="space-y-4">
+          <div>
+            <label for="rute-select" class="block text-gray-700">Pilih Rute:</label>
+            <select id="rute-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+              <option value="">Pilih Rute</option>
+              <option value="RT001">Masjid Jamik -> Asrama USK</option>
+            </select>
+          </div>
           <div>
             <label for="from-halte" class="block text-gray-700">Halte Asal:</label>
             <select id="from-halte" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
@@ -99,12 +105,10 @@
               <!-- Halte akan diisi dengan JavaScript -->
             </select>
           </div>
-          <button type="submit" class="mt-4 w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition">Cari Rute</button>
+          <button type="submit" class="mt-4 w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition">Cari Jadwal</button>
         </form>
       </div>
-      <div id="route-results" class="mt-6">
-        <!-- Hasil rute akan ditampilkan di sini -->
-      </div>
+      <div id="route-results" class="mt-6"></div>
       <div class="mt-8 flex flex-col md:flex-row gap-4 justify-center">
         <button onclick="showTab('cek-bus')" class="flex-1 py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-semibold flex items-center justify-center gap-2">
           <!-- Bus Icon -->
@@ -126,6 +130,7 @@
     <!-- Cek Kedatangan -->
     <section id="cek-kedatangan" class="tab hidden">
       <h2 class="text-2xl font-semibold mb-4">⏰ Info Kedatangan Bus</h2>
+      <p class="text-lg mt-2"><strong>Time:</strong> <strong><span class="jam-sekarang"></span></strong></p>
       <p>Belum ada data kedatangan yang ditampilkan.</p>
       <div class="mt-8 flex flex-col md:flex-row gap-4 justify-center">
         <button onclick="showTab('cek-bus')" class="flex-1 py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-semibold flex items-center justify-center gap-2">
@@ -179,13 +184,102 @@
       showTab(id);
     }
 
+    // Daftar halte (contoh, bisa disesuaikan)
+    const halteList = [
+      "Shelter Masjid Jamik",
+      "Shelter Ekonomi",
+      "Shelter Auditorium",
+      "Shelter Bundaran UIN",
+      "Shelter Fakultas Dakwah",
+      "Shelter Bank Aceh UIN",
+      "Shelter Labschool",
+      "Asrama USK",
+      "Halte Portable Kopelma",
+      "Halte Ekonomi",
+      "Shelter Gelanggang",
+      "Shelter MIPA",
+      "Shelter Ilmu Sosial",
+      "Shelter Kedokteran Hewan"
+    ];
+
+    // Isi pilihan halte pada select
+    function populateHalteSelects() {
+      const fromHalte = document.getElementById('from-halte');
+      const toHalte = document.getElementById('to-halte');
+      halteList.forEach(halte => {
+        const opt1 = document.createElement('option');
+        opt1.value = halte;
+        opt1.textContent = halte;
+        fromHalte.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = halte;
+        opt2.textContent = halte;
+        toHalte.appendChild(opt2);
+      });
+    }
+
     // Sembunyikan header & main saat awal, tampilkan modal dengan background biru
     window.onload = function() {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
       document.getElementById('modal-pilihan').style.display = 'flex';
       document.getElementById('main-header').classList.add('hidden');
       document.getElementById('main-content').classList.add('hidden');
+      populateHalteSelects(); // Tambahkan ini agar select terisi saat load
     } 
+
+    // Cegah reload saat submit form rute
+    document.addEventListener('DOMContentLoaded', function() {
+      const routeForm = document.getElementById('route-form');
+      if (routeForm) {
+        routeForm.addEventListener('submit', async function(event) {
+          event.preventDefault();
+          const rute = document.getElementById('rute-select').value;
+          const from = document.getElementById('from-halte').value;
+          const to = document.getElementById('to-halte').value;
+          if (!rute || !from || !to) {
+            document.getElementById('route-results').innerHTML = '<div class="bg-red-100 p-4 rounded">Pilih rute, halte asal, dan halte tujuan terlebih dahulu.</div>';
+            return;
+          }
+          // Ambil jadwal sesuai rute dan filter halte
+          const res = await fetch(`http://localhost:3000/api/jadwal?rute=${rute}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+          const data = await res.json();
+          if (data.length === 0) {
+            document.getElementById('route-results').innerHTML = '<div class="bg-yellow-100 p-4 rounded">Tidak ada jadwal untuk rute dan halte ini.</div>';
+            return;
+          }
+          let html = `<table class="min-w-full bg-white"><thead><tr>
+            <th class="px-4 py-2">Hari</th>
+            <th class="px-4 py-2">Waktu</th>
+            <th class="px-4 py-2">Bus</th>
+            <th class="px-4 py-2">Halte</th>
+          </tr></thead><tbody>`;
+          data.forEach(j => {
+            html += `<tr>
+              <td class="border px-4 py-2">${j.hari}</td>
+              <td class="border px-4 py-2">${j.waktu}</td>
+              <td class="border px-4 py-2">${j.kd_bus}</td>
+              <td class="border px-4 py-2">${j.nama_halte}</td>
+            </tr>`;
+          });
+          html += '</tbody></table>';
+          document.getElementById('route-results').innerHTML = html;
+        });
+      }
+    });
+
+    // Menampilkan jam sekarang
+    function updateJam() {
+      const now = new Date();
+      const options = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      document.querySelectorAll('.jam-sekarang').forEach(el => {
+        el.textContent = now.toLocaleTimeString('id-ID', options);
+      });
+    }
+
+    setInterval(updateJam, 1000);
+    updateJam();
+
   </script>
 </body>
 </html>
