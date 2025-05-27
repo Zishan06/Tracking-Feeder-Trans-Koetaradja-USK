@@ -472,7 +472,87 @@ app.post('/api/buses', async (req, res) => {//----------------------------------
     res.status(500).json({ error: err.message });
   }
 });
+// Endpoint untuk menambah jadwal (POST)
+app.post('/api/jadwal', async (req, res) => {
+  if(!isAdmin(req)) return res.status(403).json({ error: 'Akses ditolak' });
+  try {
+    const { id_jadwal, hari, waktu, kd_bus, id_rute, id_halte } = req.body;
+    
+    // Validasi data
+    if(!id_jadwal || !hari || !waktu || !kd_bus || !id_rute || !id_halte) {
+      return res.status(400).json({ error: 'Semua field wajib diisi' });
+    }
 
+    // Validasi hari
+    const validDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    if(!validDays.includes(hari)) {
+      return res.status(400).json({ error: 'Hari tidak valid' });
+    }
+
+    // Validasi bus
+    const [bus] = await pool.query('SELECT * FROM bus WHERE kd_bus = ?', [kd_bus]);
+    if(!bus.length) {
+      return res.status(400).json({ error: 'Bus tidak ditemukan' });
+    }
+
+    // Validasi rute
+    const [rute] = await pool.query('SELECT * FROM rute WHERE id_rute = ?', [id_rute]);
+    if(!rute.length) {
+      return res.status(400).json({ error: 'Rute tidak ditemukan' });
+    }
+
+    // Validasi halte
+    const [halte] = await pool.query('SELECT * FROM halte WHERE id_halte = ?', [id_halte]);
+    if(!halte.length) {
+      return res.status(400).json({ error: 'Halte tidak ditemukan' });
+    }
+
+    // Insert ke database
+    const [result] = await pool.query(
+      'INSERT INTO jadwal SET ?',
+      { id_jadwal, hari, waktu, kd_bus, id_rute, id_halte }
+    );
+    
+    res.status(201).json({ message: 'Jadwal berhasil ditambahkan', id: id_jadwal });
+  } catch(err) {
+    // Handle duplicate entry
+    if(err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'ID Jadwal sudah ada' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint untuk update jadwal (PUT)
+app.put('/api/jadwal/:id', async (req, res) => {
+  if(!isAdmin(req)) return res.status(403).json({ error: 'Akses ditolak' });
+  try {
+    const { hari, waktu, kd_bus, id_rute, id_halte } = req.body;
+    
+    // Validasi data
+    if(!hari || !waktu || !kd_bus || !id_rute || !id_halte) {
+      return res.status(400).json({ error: 'Semua field wajib diisi' });
+    }
+
+    // Validasi hari
+    const validDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    if(!validDays.includes(hari)) {
+      return res.status(400).json({ error: 'Hari tidak valid' });
+    }
+
+    // Update database
+    const [result] = await pool.query(
+      'UPDATE jadwal SET ? WHERE id_jadwal = ?',
+      [{ hari, waktu, kd_bus, id_rute, id_halte }, req.params.id]
+    );
+    
+    result.affectedRows 
+      ? res.json({ message: 'Jadwal berhasil diupdate' })
+      : res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
