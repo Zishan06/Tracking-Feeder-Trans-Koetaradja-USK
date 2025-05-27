@@ -22,25 +22,50 @@ app.get('/api/find-route', async (req, res) => {
   try {
     const { from, to, time } = req.query;
     
-    // Cek jika dari dan ke sudah dipilih
-    if (!from) {
-      return res.status(400).json({ error: 'Halte asal wajib diisi' });
-    }
-
-    // Ambil urutan halte untuk rute yang dipilih
+    // 1. Dapatkan urutan halte
     const [halte] = await pool.query(`
       SELECT * FROM halte 
       WHERE id_rute = 'RT001' 
       ORDER BY urutan
     `);
 
-    // Filter halte asal
-    const fromHalte = halte.find(h => h.id_halte === from);
-    if (!fromHalte) {
-      return res.status(404).json({ error: 'Halte asal tidak ditemukan' });
+    // 2. Cari posisi halte awal dan akhir
+    const fromIndex = halte.findIndex(h => h.id_halte === from);
+    const toIndex = halte.findIndex(h => h.id_halte === to);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      return res.status(404).json({ error: 'Halte tidak ditemukan' });
     }
 
-    // Kirimkan rute dan bus yang sesuai dengan halte asal
+    // 3. Tentukan rute berdasarkan urutan
+    let route = [];
+    if (fromIndex <= toIndex) {
+      // Rute langsung
+      route = halte.slice(fromIndex, toIndex + 1).map(h => h.id_halte);
+    } else {
+      // Rute melalui sirkular (HT014 -> HT001)
+      route = [
+        ...halte.slice(fromIndex),
+        ...halte.slice(0, toIndex + 1)
+      ].map(h => h.id_halte);
+    }
+
+    // 4. Hitung total waktu
+    const [jalur] = await pool.query('SELECT * FROM jalur');
+    let totalTime = 0;
+    
+    for (let i = 0; i < route.length - 1; i++) {
+      const edge = jalur.find(j => 
+        j.id_halte_awal === route[i] && 
+        j.id_halte_akhir === route[i + 1]
+      );
+      if (!edge) {
+        return res.status(404).json({ error: 'Jalur tidak lengkap' });
+      }
+      totalTime += edge.waktu;
+    }
+
+    // 5. Cari bus yang tersedia
     const [schedules] = await pool.query(`
       SELECT j.*, b.status_bus 
       FROM jadwal j
@@ -53,7 +78,8 @@ app.get('/api/find-route', async (req, res) => {
     `, [from, time || '00:00:00']);
 
     res.json({
-      fromHalte: fromHalte.nama_halte,
+      route,
+      total_time: `${totalTime} menit`,
       next_buses: schedules.map(s => ({
         bus: s.kd_bus,
         waktu: s.waktu.slice(0, 5),
@@ -65,7 +91,6 @@ app.get('/api/find-route', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 function calculateArrivalTime(departure, duration) {
   const [h, m] = departure.split(':');
@@ -89,6 +114,11 @@ app.get('/api/schedules/active', async (req, res) => {
     const [hours, minutes] = time.split(':');
     const timeFormatted = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
 
+    // Mapping hari: Selasa-Jumat diperlakukan sebagai Senin
+    const normalizedDay = ['Selasa', 'Rabu', 'Kamis', 'Jumat'].includes(day) 
+      ? 'Senin' 
+      : day;
+
     // Query database
     const [schedules] = await pool.query(`
       SELECT 
@@ -105,11 +135,11 @@ app.get('/api/schedules/active', async (req, res) => {
       WHERE j.hari = ?
         AND j.waktu BETWEEN ? AND ?
       ORDER BY j.waktu
-    `, [day, timeFormatted, `${hours}:${minutes}:59`]);
+    `, [normalizedDay, timeFormatted, `${hours}:${minutes}:59`]);
 
     res.json({
       time,
-      day,
+      day: normalizedDay, // Kembalikan hari yang dinormalisasi
       active_schedules: schedules.map(s => ({
         bus: s.kd_bus,
         waktu: s.waktu.slice(0, 5), // Format HH:MM
@@ -122,7 +152,6 @@ app.get('/api/schedules/active', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 //=====================UNTUK TAU ESTIMASI KEDATANGAN BUS DI HALTE A===========
 async function calculateETA(busSchedule, targetHalteId) {
   try {
@@ -189,57 +218,115 @@ async function calculateETA(busSchedule, targetHalteId) {
 }
 
 // Endpoint yang sudah diperbaiki
+// Perbaikan endpoint /api/bus/eta di index.js
 app.get('/api/bus/eta', async (req, res) => {
   try {
     const { halteId } = req.query;
-    
     if (!halteId) {
       return res.status(400).json({ error: 'Parameter halteId wajib' });
     }
 
-    // 1. Cari bus berikutnya yang menuju halte ini
-    const [nextBus] = await pool.query(`
-      SELECT j.*, b.status_bus 
-      FROM jadwal j
-      JOIN bus b ON j.kd_bus = b.kd_bus
-      WHERE j.id_halte IN (
-        SELECT id_halte_awal FROM jalur WHERE id_halte_akhir = ?
-      )
-      AND j.waktu >= TIME(NOW())
-      AND j.hari = DAYNAME(NOW())
-      ORDER BY j.waktu
-      LIMIT 1
-    `, [halteId]);
-
-    // 2. Hitung ETA jika bus ditemukan
-    if (nextBus.length) {
-      const etaMinutes = await calculateETA(nextBus[0], halteId);
-      
-      if (etaMinutes !== null) {
-        // Hitung waktu kedatangan
-        const [hours, mins] = nextBus[0].waktu.split(':');
-        const arrivalTime = new Date();
-        arrivalTime.setHours(hours, mins, 0, 0);
-        arrivalTime.setMinutes(arrivalTime.getMinutes() + etaMinutes);
-        
-        res.json({
-          bus: nextBus[0].kd_bus,
-          currentHalte: nextBus[0].id_halte,
-          etaMinutes,
-          arrivalTime: arrivalTime.toTimeString().substr(0, 5),
-          nextHalte: await getNextHalte(nextBus[0].kd_bus)
-        });
-      } else {
-        res.json({ error: 'Tidak dapat menghitung ETA' });
-      }
-    } else {
-      res.json({ message: 'Tidak ada bus menuju halte ini dalam waktu dekat' });
+    function mapDayNameOverride(date = new Date()) {
+      const day = date.getDay(); // 0 = Minggu, 6 = Sabtu
+      if (day === 6) return 'Sabtu';
+      if (day === 0) return null; // Minggu diabaikan
+      return 'Senin'; // Senin sampai Jumat dianggap Senin
     }
 
+    // Ambil semua jadwal yang masih aktif hari ini
+    const hariMap = mapDayNameOverride();
+    if (!hariMap) return res.json({ message: 'Tidak ada layanan bus di hari Minggu' });
+
+    const [candidates] = await pool.query(`
+      SELECT j.*, b.status_bus, h.id_rute
+      FROM jadwal j
+      JOIN bus b ON j.kd_bus = b.kd_bus
+      JOIN halte h ON j.id_halte = h.id_halte
+      WHERE j.hari = ? AND j.waktu >= TIME(NOW())
+      ORDER BY j.waktu
+    `, [hariMap]);
+
+    let selected = null;
+    let routeHalteIds = [];
+
+    // Cari bus yang rutenya melewati halte tujuan
+    for (const bus of candidates) {
+      const [halteRoute] = await pool.query(
+        `SELECT id_halte FROM halte WHERE id_rute = ? ORDER BY urutan`,
+        [bus.id_rute]
+      );
+      const ids = halteRoute.map(h => h.id_halte);
+      if (ids.includes(halteId)) {
+        selected = bus;
+        routeHalteIds = ids;
+        break;
+      }
+    }
+
+    if (!selected) {
+      return res.json({ message: 'Tidak ada bus tersedia menuju halte ini saat ini' });
+    }
+
+    // Asumsikan bus berada di halte jadwal terakhirnya (karena tidak ada data posisi real-time)
+    const currentHalteId = selected.id_halte;
+
+    // Hitung ETA
+    const currentIndex = routeHalteIds.indexOf(currentHalteId);
+    const targetIndex = routeHalteIds.indexOf(halteId);
+
+    if (currentIndex === -1 || targetIndex === -1) {
+      return res.json({ error: 'Posisi atau tujuan halte tidak valid' });
+    }
+
+    let totalETA = 0;
+    if (currentIndex <= targetIndex) {
+      // Rute normal (tidak sirkular)
+      for (let i = currentIndex; i < targetIndex; i++) {
+        const [jalur] = await pool.query(
+          `SELECT waktu FROM jalur WHERE id_halte_awal = ? AND id_halte_akhir = ?`,
+          [routeHalteIds[i], routeHalteIds[i + 1]]
+        );
+        totalETA += jalur[0]?.waktu || 0;
+      }
+    } else {
+      // Rute sirkular (melewati ujung rute)
+      // Dari posisi saat ini ke akhir rute
+      for (let i = currentIndex; i < routeHalteIds.length - 1; i++) {
+        const [jalur] = await pool.query(
+          `SELECT waktu FROM jalur WHERE id_halte_awal = ? AND id_halte_akhir = ?`,
+          [routeHalteIds[i], routeHalteIds[i + 1]]
+        );
+        totalETA += jalur[0]?.waktu || 0;
+      }
+      // Dari awal rute ke halte tujuan
+      for (let i = 0; i < targetIndex; i++) {
+        const [jalur] = await pool.query(
+          `SELECT waktu FROM jalur WHERE id_halte_awal = ? AND id_halte_akhir = ?`,
+          [routeHalteIds[i], routeHalteIds[i + 1]]
+        );
+        totalETA += jalur[0]?.waktu || 0;
+      }
+    }
+
+    // Hitung waktu tiba
+    const [h, m] = selected.waktu.split(':');
+    const arrival = new Date();
+    arrival.setHours(+h, +m, 0);
+    arrival.setMinutes(arrival.getMinutes() + totalETA);
+
+    res.json({
+      bus: selected.kd_bus,
+      status_bus: selected.status_bus,
+      currentHalte: currentHalteId,
+      etaMinutes: totalETA,
+      arrivalTime: `${arrival.getHours().toString().padStart(2, '0')}:${arrival.getMinutes().toString().padStart(2, '0')}`,
+      route: routeHalteIds
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Helper function - dapatkan halte berikutnya
 async function getNextHalte(busId) {
@@ -276,36 +363,6 @@ app.get('/api/haltes', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
-app.get('/api/jadwal', async (req, res) => {
-  const { rute, from, to } = req.query;
-  if (!rute) return res.json([]);
-  try {
-    // Ambil urutan halte asal dan tujuan
-    let urutanFrom = 1, urutanTo = 999;
-    if (from && to) {
-      const [halteRows] = await pool.query(
-        "SELECT nama_halte, urutan FROM halte WHERE id_rute = ? AND (nama_halte = ? OR nama_halte = ?)",
-        [rute, from, to]
-      );
-      const urutans = halteRows.map(h => h.urutan);
-      urutanFrom = Math.min(...urutans);
-      urutanTo = Math.max(...urutans);
-    }
-    const [rows] = await pool.query(
-      `SELECT j.*, h.nama_halte 
-       FROM jadwal j
-       JOIN halte h ON j.id_halte = h.id_halte
-       WHERE j.id_rute = ?
-       AND h.urutan BETWEEN ? AND ?
-       ORDER BY h.urutan, j.hari, j.waktu`, [rute, urutanFrom, urutanTo]
-    );
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 
 //=============================MODE ATMIN===============================member dilarang masuk!
 const isAdmin = (req) => {
@@ -366,6 +423,20 @@ app.delete('/api/haltes/:id', async (req, res) => {
   }
 });
 
+app.get('/api/jadwal', async (req, res) => {//-----------------------------JADWAL
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM jadwal
+      ORDER BY 
+        FIELD(hari, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'),
+        waktu
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/schedules/:id', async (req, res) => {
   if(!isAdmin(req)) return res.status(403).json({ error: 'Akses ditolak' });
   try {
@@ -414,4 +485,3 @@ app.listen(PORT, () => {
   ]).then(() => console.log('✅ Database terkoneksi'))
     .catch(err => console.error('❌ Matilah, ada yg salah bos:', err));
 });
-
