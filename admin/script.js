@@ -100,15 +100,6 @@ window.deleteHalte = async (id) => {
     alert(err.message);
   }
 };
-document.getElementById('add-halte-btn').addEventListener('click', function () {
-  // Bersihkan form
-  document.getElementById('halte-form').reset();
-  
-  // Fokus ke input pertama (opsional)
-  document.getElementById('id_halte').focus();
 
-  // Scroll ke form (jika diperlukan)
-  document.getElementById('halte-form').scrollIntoView({ behavior: 'smooth' });
-});
 // Jalankan saat halaman siap
 window.addEventListener('DOMContentLoaded', loadHalte);
